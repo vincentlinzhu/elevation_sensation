@@ -2,10 +2,19 @@ import './App.css';
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
-import { LngLat } from 'mapbox-gl';
-
+import pieChart from './components/pieChart';
+import { getUserPosition } from './utils/user-position';
 
 function App() {
+  // let initialLng = 0;
+  // let initialLat = 0;
+  // getUserPosition(({ coords: { longitude, latitude } }) =>
+  //   {initialLng = longitude} 
+  // );
+  // getUserPosition(({ coords: { longitude, latitude } }) =>
+  //   {initialLat = latitude} 
+  // );
+
   mapboxgl.accessToken = 'pk.eyJ1IjoidmlubmllLXRoZS16aHUiLCJhIjoiY2w0bHVmcWJjMHF6bTNrb3Z1N2FodXhhNCJ9.ElnrnDn7jHCaYS9isGfmYw';
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -16,11 +25,36 @@ function App() {
 
   var currentMarkers = [];
 
+  const getElevation = async (coord) => {
+    // Construct the API request
+    // console.log(coord);
+    const query = await fetch(
+      `https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/tilequery/${coord.lng},${coord.lat}.json?layers=contour&limit=50&access_token=${mapboxgl.accessToken}`,
+      { method: "GET" }
+    );
+    if (query.status !== 200) return;
+    const data = await query.json();
+
+    // console.log(data);
+
+    // Get all the returned features
+    const allFeatures = data.features;
+    // console.log(allFeatures);
+
+    // For each returned feature, add elevation data to the elevations array
+    const elevations = allFeatures.map((feature) => feature.properties.ele);
+    
+    // In the elevations array, find the largest value
+    // console.log(...elevations);
+    const highestElevation = Math.max(...elevations);
+    setElevation(highestElevation);
+  }
+
   useEffect(() => {
     if (map.current) return; // initialize map only once
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v10",
+      style: "mapbox://styles/mapbox/satellite-streets-v11",
       center: [lng, lat],
       zoom: zoom,
     });
@@ -32,8 +66,9 @@ function App() {
       // placeholder: 'Enter an address or place name', // This placeholder text will display in the search bar
       // bbox: [-105.116, 39.679, -104.898, 39.837], // Set a bounding box
       marker: false,
+      // position: "top-left",
     });
-    map.current.addControl(geocoder);
+    map.current.addControl(geocoder, "top-left");
 
     const marker = new mapboxgl.Marker({ color: "#DC143C" });
     geocoder.on("result", async (event) => {
@@ -45,7 +80,12 @@ function App() {
       const point = event.result.center; // Capture the result coordinates
       marker.setLngLat(point).addTo(map.current); // Add the marker to the map at the result coordinates
       currentMarkers.push(marker);
-      getElevation();
+      const lngLatObj = {lng: point[0], lat: point[1]};
+
+      // console.log(lngLatObj);
+      setLat(point.lat);
+      setLng(point.lng);
+      getElevation(lngLatObj);
     });
 
     map.current.on("click", async (event) => {
@@ -63,67 +103,30 @@ function App() {
 
       setLat(coordinates.lat.toFixed(4));
       setLng(coordinates.lng.toFixed(4));
-      getElevation();
+      getElevation(coordinates);
       // console.log(`${lng}, ${lat}`)
     });
 
-    // map.current.on('click', (event) => {
-    //   // When the map is clicked, set the lng and lat constants
-    //   // equal to the lng and lat properties in the returned lngLat object.
-    //   console.log(event.lngLat.lng);
-    //   console.log(event.lngLat.lat);
-    //   setLng(event.lngLat.lng);
-    //   setLat(event.lngLat.lat);
-    //   // getElevation();
-    //   console.log(`${lng}, ${lat}`);
-    //   const point = new LngLat(lng, lat);
-    //   marker.setLngLat(point).addTo(map.current);
-    // });
+    map.current.addControl(
+      new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true
+      },
+      // When active the map will receive updates to the device's location as it changes.
+      trackUserLocation: true,
+      // Draw an arrow next to the location dot to indicate which direction the device is heading.
+      showUserHeading: true
+      })
+    );
 
-    const getElevation = async () => {
-      // Construct the API request
-      const query = await fetch(
-        `https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/tilequery/${lng},${lat}.json?layers=contour&limit=50&access_token=${mapboxgl.accessToken}`,
-        { method: "GET" }
-      );
-      if (query.status !== 200) return;
-      const data = await query.json();
-      // Display the longitude and latitude values
-      // lngDisplay.textContent = lng.toFixed(2);
-      // latDisplay.textContent = lat.toFixed(2);
-      // Get all the returned features
-      const allFeatures = data.features;
-      // For each returned feature, add elevation data to the elevations array
-      const elevations = allFeatures.map((feature) => feature.properties.ele);
-      // In the elevations array, find the largest value
-      const highestElevation = Math.max(...elevations);
-      // Display the largest elevation value
-      // eleDisplay.textContent = `${highestElevation} meters`;
-      setElevation(highestElevation);
-      console.log(...elevations)
-    }
     map.current.addControl(new mapboxgl.NavigationControl());
   });
 
   // useEffect(() => {
-  //   map.current.on('click', async (event) => {
-  //     if (currentMarkers !== null) {
-  //       for (var i = currentMarkers.length - 1; i >= 0; i--) {
-  //         currentMarkers[i].remove();
-  //       }
-  //     }
-  //     var coordinates = event.lngLat;
-  //     const marker2 = new mapboxgl.Marker({
-  //       color: "#DC143C",
-  //     });
-  //     marker2.setLngLat(coordinates).addTo(map.current);
-  //     currentMarkers.push(marker2);
-
-  //     setLat(coordinates.lat.toFixed(4));
-  //     setLng(coordinates.lng.toFixed(4));
-  //     // console.log(`${lng}, ${lat}`)
-  //   });
-  // })
+  //   const coords = {lng, lat};
+  //   const newElevation = map.queryTerrainElevation(coords, { exaggerated: false });
+  //   setElevation(newElevation);
+  // }, [setLng, setLat, lng, lat])
 
   useEffect(() => {
     if (!map.current) return; // wait for map to initialize
@@ -134,16 +137,20 @@ function App() {
     });
   });
 
-  
-
   return (
     <div className="App">
       <div className="sidebar">
-        Longitude: {lng} | Latitude: {lat} | Elevation: {elevation} meters | Zoom: {zoom}
+        <p>Stats:</p>
+        <hr/>
+        <p>Longitude: {lng}</p>
+        <p>Latitude: {lat}</p>
+        <p>Elevation: {elevation} meters</p>
+        <p>Zoom: {zoom}</p>
       </div>
       <div>
         <div ref={mapContainer} className="map-container" />
       </div>
+      <pieChart/>
     </div>
   );
 }
