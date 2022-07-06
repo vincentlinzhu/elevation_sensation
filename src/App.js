@@ -4,6 +4,7 @@ import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-load
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import pieChart from './components/pieChart';
 import { getUserPosition } from './utils/user-position';
+// import Compare from mapbox-gl-Compare;
 
 function App() {
   // let initialLng = 0;
@@ -17,7 +18,12 @@ function App() {
 
   mapboxgl.accessToken = 'pk.eyJ1IjoidmlubmllLXRoZS16aHUiLCJhIjoiY2w0bHVmcWJjMHF6bTNrb3Z1N2FodXhhNCJ9.ElnrnDn7jHCaYS9isGfmYw';
   const mapContainer = useRef(null);
+  // const comparisonMap = useRef(null);
+  // const comparisonContainer = useRef(null);
+  // const before = useRef(null);
+  // const after = useRef(null);
   const map = useRef(null);
+  // const mapSecond = useRef(null);
   const [lng, setLng] = useState(-104.9903);
   const [lat, setLat] = useState(39.7392);
   const [zoom, setZoom] = useState(11);
@@ -54,10 +60,31 @@ function App() {
     if (map.current) return; // initialize map only once
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v11",
+      style: 'mapbox://styles/mapbox/satellite-streets-v11',
       center: [lng, lat],
       zoom: zoom,
+      projection: 'globe',
     });
+
+    map.current.on('style.load', () => {
+      map.current.setFog({}); // Set the default atmosphere style
+    });
+
+    // if (mapSecond.current) return; // initialize map only once
+    // mapSecond.current = new mapboxgl.Map({
+    //   container: after.current,
+    //   style: "mapbox://styles/mapbox/light-v10",
+    //   center: [lng, lat],
+    //   zoom: zoom,
+    // });
+
+    // const container = '#comparisonContainer';
+    // // const container = comparisonContainer.current;
+ 
+    // comparisonMap.current = new mapboxgl.Compare(map.current, mapSecond.current, container, {
+    //   // Set this to enable comparing two maps by mouse movement:
+    //   // mousemove: true
+    // });
 
     const geocoder = new MapboxGeocoder({
       accessToken: mapboxgl.accessToken,
@@ -149,8 +176,12 @@ function App() {
       </div>
       <div>
         <div ref={mapContainer} className="map-container" />
+        {/* <div ref={comparisonContainer} id='comparisonContainer' className="map-container">
+          <div ref={before} className="map"></div>
+          <div ref={after} className="map"></div>
+        </div> */}
       </div>
-      <pieChart/>
+      {/* <pieChart/> */}
     </div>
   );
 }
